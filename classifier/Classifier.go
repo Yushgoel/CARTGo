@@ -8,6 +8,8 @@ import (
 	"os"
 	"sort"
 	"strconv"
+
+	Sorter "github.com/Yushgoel/CARTGo/sorter"
 )
 
 func Gini_impurity(y []int64, labels []int64) (float64, int64) {
@@ -102,14 +104,70 @@ func Validate(feature int64, threshold float64) bool {
 	return true
 }
 
+func ReOrder_data(feature_val []float64, data [][]float64, y []int64) ([][]float64, []int64) {
+	s := Sorter.NewSlice(feature_val)
+	sort.Sort(s)
+
+	indexes := s.Idx
+
+	var data_sorted [][]float64
+	var y_sorted []int64
+
+	for _, index := range indexes {
+		data_sorted = append(data_sorted, data[index])
+		y_sorted = append(y_sorted, y[index])
+	}
+
+	/*sort.SliceStable(y[:], func(i, j int) bool {
+		for _ = range data[i] {
+			if data[i][feature] == data[j][feature] {
+				continue
+			}
+		}
+		return data[i][feature] < data[j][feature]
+		return false
+	})
+
+	sort.SliceStable(data[:], func(i, j int) bool {
+		for _ = range data[i] {
+			if data[i][feature] == data[j][feature] {
+				continue
+			}
+			return data[i][feature] < data[j][feature]
+		}
+		return false
+	})*/
+	return data_sorted, y_sorted
+
+}
+
+func Update_split(left [][]float64, lefty []int64, right [][]float64, righty []int64, feature int64, threshold float64) ([][]float64, []int64, [][]float64, []int64) {
+
+	for right[0][feature] < threshold {
+		left = append(left, right[0])
+		right = right[1:]
+		lefty = append(lefty, righty[0])
+		righty = righty[1:]
+	}
+
+	return left, lefty, right, righty
+}
+
+func sum(y []int64) int64 {
+	var sum_ int64 = 0
+	for i := range y {
+		sum_ += y[i]
+	}
+	return sum_
+}
+
 func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node) Node {
 	num_features := len(data[0])
 	var best_gini float64
 	var orig_gini float64
 	orig_gini, upperNode.Left_Label = Gini_impurity(y, labels)
 	best_gini = orig_gini
-	// fmt.Print("INITIAL GINI IS")
-	// fmt.Println(best_gini)
+
 	best_left := data
 	best_right := data
 	best_lefty := y
@@ -131,11 +189,23 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node) Nod
 		sort.Float64s(unique)
 		num_unique := len(unique)
 
+		sort_data, sort_y := ReOrder_data(feature_val, data, y)
+
+		first_time := true
+
+		var left, right [][]float64
+		var lefty, righty []int64
+
 		for j := range unique {
 			if j != (num_unique - 1) {
 				threshold := (unique[j] + unique[j+1]) / 2
 				if Validate(int64(i), threshold) {
-					left, right, lefty, righty := Test_split(data, int64(i), y, threshold)
+					if first_time {
+						left, right, lefty, righty = Test_split(sort_data, int64(i), sort_y, threshold)
+						first_time = false
+					} else {
+						left, lefty, right, righty = Update_split(left, lefty, right, righty, int64(i), threshold)
+					}
 
 					var left_gini float64
 					var right_gini float64
@@ -157,6 +227,9 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node) Nod
 
 						upperNode.Left_Label = left_labels
 						upperNode.Right_Label = right_labels
+
+						a, b := sum(lefty), sum(righty)
+						fmt.Println(left_labels, a, len(lefty), right_labels, b, len(righty))
 
 						best_left_gini = left_gini
 						best_right_gini = right_gini
@@ -282,7 +355,7 @@ func Read_csv(train_size int) ([][]float64, [][]float64, []int64, []int64) {
 		}
 
 		if counter == 0 {
-			fmt.Printf("Reading Columns")
+			fmt.Println("Reading Data")
 		} else {
 			var row []float64
 			for i := 1; i < 2; i++ {
