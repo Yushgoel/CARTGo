@@ -161,7 +161,14 @@ func sum(y []int64) int64 {
 	return sum_
 }
 
-func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node) Node {
+// Essentially the Fit Method
+func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, maxDepth int64, depth int64) Node {
+	depth++
+
+	if depth > maxDepth {
+		return upperNode
+	}
+
 	num_features := len(data[0])
 	var best_gini float64
 	var orig_gini float64
@@ -246,7 +253,7 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node) Nod
 
 		if best_left_gini > 0 {
 			Tried_splits = append(Tried_splits, []float64{float64(upperNode.Feature), upperNode.Threshold})
-			leftN = Best_split(best_left, best_lefty, labels, leftN)
+			leftN = Best_split(best_left, best_lefty, labels, leftN, maxDepth, depth)
 			if leftN.Use_not == true {
 				upperNode.Left = &leftN
 			}
@@ -254,7 +261,7 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node) Nod
 		}
 		if best_right_gini > 0 {
 			Tried_splits = append(Tried_splits, []float64{float64(upperNode.Feature), upperNode.Threshold})
-			rightN = Best_split(best_right, best_righty, labels, rightN)
+			rightN = Best_split(best_right, best_righty, labels, rightN, maxDepth, depth)
 			if rightN.Use_not == true {
 				upperNode.Right = &rightN
 			}
