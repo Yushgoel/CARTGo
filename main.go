@@ -24,11 +24,10 @@ func main() {
 	// tree = Classifier.Best_split(data, []int64{0, 1, 0}, []int64{0, 1}, tree)
 
 	x_train, x_test, y_train, y_test := Classifier.Read_csv(713)
-	tree = Classifier.Best_split(x_train, y_train, []int64{0, 1}, tree, 5, 0)
+	tree = Classifier.Best_split(x_train, y_train, []int64{0, 1}, tree, "entropy", 5, 0)
 
 	fmt.Println(" ")
 	fmt.Println(" ")
 	Classifier.PrintTree(tree, "")
 	fmt.Println(Classifier.Evaluate(tree, x_test, y_test))
-
 }

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	Sorter "github.com/Yushgoel/CARTGo/sorter"
 )
@@ -32,6 +34,33 @@ func Gini_impurity(y []int64, labels []int64) (float64, int64) {
 		}
 	}
 	return gini, max_label
+}
+
+func Entropy(y []int64, labels []int64) (float64, int64) {
+	n_instances := len(y)
+	entropy := 0.0
+	max_label_count := 0
+	var max_label int64 = 0
+	for label := range labels {
+		num_label := 0
+		for target := range y {
+			if y[target] == labels[label] {
+				num_label++
+			}
+		}
+		p := float64(num_label) / float64(n_instances)
+
+		log_p := math.Log2(p)
+		if p == 0 {
+			log_p = 0
+		}
+		entropy += -p * log_p
+		if num_label > max_label_count {
+			max_label = labels[label]
+			max_label_count = num_label
+		}
+	}
+	return entropy, max_label
 }
 
 func Test_split(data [][]float64, feature int64, y []int64, threshold float64) ([][]float64, [][]float64, []int64, []int64) {
@@ -118,25 +147,6 @@ func ReOrder_data(feature_val []float64, data [][]float64, y []int64) ([][]float
 		y_sorted = append(y_sorted, y[index])
 	}
 
-	/*sort.SliceStable(y[:], func(i, j int) bool {
-		for _ = range data[i] {
-			if data[i][feature] == data[j][feature] {
-				continue
-			}
-		}
-		return data[i][feature] < data[j][feature]
-		return false
-	})
-
-	sort.SliceStable(data[:], func(i, j int) bool {
-		for _ = range data[i] {
-			if data[i][feature] == data[j][feature] {
-				continue
-			}
-			return data[i][feature] < data[j][feature]
-		}
-		return false
-	})*/
 	return data_sorted, y_sorted
 
 }
@@ -162,7 +172,9 @@ func sum(y []int64) int64 {
 }
 
 // Essentially the Fit Method
-func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, maxDepth int64, depth int64) Node {
+func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, criterion string, maxDepth int64, depth int64) Node {
+	criterion = strings.ToLower(criterion)
+
 	depth++
 
 	if depth > maxDepth {
@@ -172,7 +184,15 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, max
 	num_features := len(data[0])
 	var best_gini float64
 	var orig_gini float64
-	orig_gini, upperNode.Left_Label = Gini_impurity(y, labels)
+
+	if criterion == "gini" {
+		orig_gini, upperNode.Left_Label = Gini_impurity(y, labels)
+	} else if criterion == "entropy" {
+		orig_gini, upperNode.Left_Label = Entropy(y, labels)
+	} else {
+		panic("Please enter a valid impurity function from GINI or ENTROPY")
+	}
+
 	best_gini = orig_gini
 
 	best_left := data
@@ -218,9 +238,16 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, max
 					var right_gini float64
 					var left_labels int64
 					var right_labels int64
-					left_gini, left_labels = Gini_impurity(lefty, labels)
-					right_gini, right_labels = Gini_impurity(righty, labels)
 
+					if criterion == "gini" {
+						left_gini, left_labels = Gini_impurity(lefty, labels)
+						right_gini, right_labels = Gini_impurity(righty, labels)
+					} else if criterion == "entropy" {
+						left_gini, left_labels = Entropy(lefty, labels)
+						right_gini, right_labels = Entropy(righty, labels)
+					} else {
+
+					}
 					sub_gini := (left_gini * float64(len(left)) / float64(num_data)) + (right_gini * float64(len(right)) / float64(num_data))
 
 					if sub_gini < best_gini {
@@ -253,7 +280,7 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, max
 
 		if best_left_gini > 0 {
 			Tried_splits = append(Tried_splits, []float64{float64(upperNode.Feature), upperNode.Threshold})
-			leftN = Best_split(best_left, best_lefty, labels, leftN, maxDepth, depth)
+			leftN = Best_split(best_left, best_lefty, labels, leftN, criterion, maxDepth, depth)
 			if leftN.Use_not == true {
 				upperNode.Left = &leftN
 			}
@@ -261,7 +288,7 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, max
 		}
 		if best_right_gini > 0 {
 			Tried_splits = append(Tried_splits, []float64{float64(upperNode.Feature), upperNode.Threshold})
-			rightN = Best_split(best_right, best_righty, labels, rightN, maxDepth, depth)
+			rightN = Best_split(best_right, best_righty, labels, rightN, criterion, maxDepth, depth)
 			if rightN.Use_not == true {
 				upperNode.Right = &rightN
 			}
