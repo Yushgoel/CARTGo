@@ -228,9 +228,6 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node) Nod
 						upperNode.Left_Label = left_labels
 						upperNode.Right_Label = right_labels
 
-						a, b := sum(lefty), sum(righty)
-						fmt.Println(left_labels, a, len(lefty), right_labels, b, len(righty))
-
 						best_left_gini = left_gini
 						best_right_gini = right_gini
 					}
