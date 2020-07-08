@@ -14,7 +14,7 @@ import (
 	Sorter "github.com/Yushgoel/CARTGo/sorter"
 )
 
-func Gini_impurity(y []int64, labels []int64) (float64, int64) {
+func gini_impurity(y []int64, labels []int64) (float64, int64) {
 	n_instances := len(y)
 	gini := 0.0
 	max_label_count := 0
@@ -36,7 +36,7 @@ func Gini_impurity(y []int64, labels []int64) (float64, int64) {
 	return gini, max_label
 }
 
-func Entropy(y []int64, labels []int64) (float64, int64) {
+func entropy(y []int64, labels []int64) (float64, int64) {
 	n_instances := len(y)
 	entropy := 0.0
 	max_label_count := 0
@@ -63,7 +63,7 @@ func Entropy(y []int64, labels []int64) (float64, int64) {
 	return entropy, max_label
 }
 
-func Test_split(data [][]float64, feature int64, y []int64, threshold float64) ([][]float64, [][]float64, []int64, []int64) {
+func test_split(data [][]float64, feature int64, y []int64, threshold float64) ([][]float64, [][]float64, []int64, []int64) {
 	var left [][]float64
 	var right [][]float64
 	var lefty []int64
@@ -92,7 +92,7 @@ func stringInSlice(a float64, list []float64) bool {
 	return false
 }
 
-func Find_unique(data []float64) []float64 {
+func find_unique(data []float64) []float64 {
 	var unique []float64
 	for i := range data {
 		if !stringInSlice(data[i], unique) {
@@ -102,7 +102,7 @@ func Find_unique(data []float64) []float64 {
 	return unique
 }
 
-func Get_feature(data [][]float64, feature int64) []float64 {
+func get_feature(data [][]float64, feature int64) []float64 {
 	var feature_vals []float64
 	for i := range data {
 		feature_vals = append(feature_vals, data[i][feature])
@@ -118,13 +118,31 @@ type Node struct {
 	Left_Label  int64
 	Right_Label int64
 	Use_not     bool
+	criterion   string
+	maxDepth    int64
 }
 
-var Tried_splits [][]float64
+type Tree struct {
+	RootNode  *Node
+	criterion string
+	maxDepth  int64
+	labels    []int64
+}
 
-func Validate(feature int64, threshold float64) bool {
-	for i := range Tried_splits {
-		split := Tried_splits[i]
+func DecisionTreeClassifier(criterion string, maxDepth int64, labels []int64) Tree {
+	var tree Tree
+	tree.criterion = strings.ToLower(criterion)
+	tree.maxDepth = maxDepth
+	tree.labels = labels
+
+	return tree
+}
+
+var tried_splits [][]float64
+
+func validate(feature int64, threshold float64) bool {
+	for i := range tried_splits {
+		split := tried_splits[i]
 		feature_tried, threshold_tried := split[0], split[1]
 		if int64(feature_tried) == feature && threshold_tried == threshold {
 			return false
@@ -133,7 +151,7 @@ func Validate(feature int64, threshold float64) bool {
 	return true
 }
 
-func ReOrder_data(feature_val []float64, data [][]float64, y []int64) ([][]float64, []int64) {
+func reOrder_data(feature_val []float64, data [][]float64, y []int64) ([][]float64, []int64) {
 	s := Sorter.NewSlice(feature_val)
 	sort.Sort(s)
 
@@ -151,7 +169,7 @@ func ReOrder_data(feature_val []float64, data [][]float64, y []int64) ([][]float
 
 }
 
-func Update_split(left [][]float64, lefty []int64, right [][]float64, righty []int64, feature int64, threshold float64) ([][]float64, []int64, [][]float64, []int64) {
+func update_split(left [][]float64, lefty []int64, right [][]float64, righty []int64, feature int64, threshold float64) ([][]float64, []int64, [][]float64, []int64) {
 
 	for right[0][feature] < threshold {
 		left = append(left, right[0])
@@ -171,13 +189,21 @@ func sum(y []int64) int64 {
 	return sum_
 }
 
+func Fit(tree Tree, data [][]float64, y []int64) Tree {
+	var emptyNode Node
+
+	emptyNode = best_split(data, y, tree.labels, emptyNode, tree.criterion, tree.maxDepth, 0)
+
+	tree.RootNode = &emptyNode
+	return tree
+}
+
 // Essentially the Fit Method
-func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, criterion string, maxDepth int64, depth int64) Node {
-	criterion = strings.ToLower(criterion)
+func best_split(data [][]float64, y []int64, labels []int64, upperNode Node, criterion string, maxDepth int64, depth int64) Node {
 
 	depth++
 
-	if depth > maxDepth {
+	if depth > maxDepth && maxDepth != -1 {
 		return upperNode
 	}
 
@@ -186,9 +212,9 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, cri
 	var orig_gini float64
 
 	if criterion == "gini" {
-		orig_gini, upperNode.Left_Label = Gini_impurity(y, labels)
+		orig_gini, upperNode.Left_Label = gini_impurity(y, labels)
 	} else if criterion == "entropy" {
-		orig_gini, upperNode.Left_Label = Entropy(y, labels)
+		orig_gini, upperNode.Left_Label = entropy(y, labels)
 	} else {
 		panic("Please enter a valid impurity function from GINI or ENTROPY")
 	}
@@ -211,12 +237,12 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, cri
 	var rightN Node
 	// Iterate over all features
 	for i := 0; i < num_features; i++ {
-		feature_val := Get_feature(data, int64(i))
-		unique := Find_unique(feature_val)
+		feature_val := get_feature(data, int64(i))
+		unique := find_unique(feature_val)
 		sort.Float64s(unique)
 		num_unique := len(unique)
 
-		sort_data, sort_y := ReOrder_data(feature_val, data, y)
+		sort_data, sort_y := reOrder_data(feature_val, data, y)
 
 		first_time := true
 
@@ -226,12 +252,12 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, cri
 		for j := range unique {
 			if j != (num_unique - 1) {
 				threshold := (unique[j] + unique[j+1]) / 2
-				if Validate(int64(i), threshold) {
+				if validate(int64(i), threshold) {
 					if first_time {
-						left, right, lefty, righty = Test_split(sort_data, int64(i), sort_y, threshold)
+						left, right, lefty, righty = test_split(sort_data, int64(i), sort_y, threshold)
 						first_time = false
 					} else {
-						left, lefty, right, righty = Update_split(left, lefty, right, righty, int64(i), threshold)
+						left, lefty, right, righty = update_split(left, lefty, right, righty, int64(i), threshold)
 					}
 
 					var left_gini float64
@@ -240,11 +266,11 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, cri
 					var right_labels int64
 
 					if criterion == "gini" {
-						left_gini, left_labels = Gini_impurity(lefty, labels)
-						right_gini, right_labels = Gini_impurity(righty, labels)
+						left_gini, left_labels = gini_impurity(lefty, labels)
+						right_gini, right_labels = gini_impurity(righty, labels)
 					} else if criterion == "entropy" {
-						left_gini, left_labels = Entropy(lefty, labels)
-						right_gini, right_labels = Entropy(righty, labels)
+						left_gini, left_labels = entropy(lefty, labels)
+						right_gini, right_labels = entropy(righty, labels)
 					} else {
 
 					}
@@ -279,16 +305,16 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, cri
 	if best_gini > 0 {
 
 		if best_left_gini > 0 {
-			Tried_splits = append(Tried_splits, []float64{float64(upperNode.Feature), upperNode.Threshold})
-			leftN = Best_split(best_left, best_lefty, labels, leftN, criterion, maxDepth, depth)
+			tried_splits = append(tried_splits, []float64{float64(upperNode.Feature), upperNode.Threshold})
+			leftN = best_split(best_left, best_lefty, labels, leftN, criterion, maxDepth, depth)
 			if leftN.Use_not == true {
 				upperNode.Left = &leftN
 			}
 
 		}
 		if best_right_gini > 0 {
-			Tried_splits = append(Tried_splits, []float64{float64(upperNode.Feature), upperNode.Threshold})
-			rightN = Best_split(best_right, best_righty, labels, rightN, criterion, maxDepth, depth)
+			tried_splits = append(tried_splits, []float64{float64(upperNode.Feature), upperNode.Threshold})
+			rightN = best_split(best_right, best_righty, labels, rightN, criterion, maxDepth, depth)
 			if rightN.Use_not == true {
 				upperNode.Right = &rightN
 			}
@@ -302,7 +328,12 @@ func Best_split(data [][]float64, y []int64, labels []int64, upperNode Node, cri
 	return upperNode
 }
 
-func PrintTree(tree Node, spacing string) float64 {
+func PrintTree(tree Tree) {
+	rootNode := *tree.RootNode
+	printTreeFromNode(rootNode, "")
+}
+
+func printTreeFromNode(tree Node, spacing string) float64 {
 
 	fmt.Print(spacing + "Feature ")
 	fmt.Print(tree.Feature)
@@ -322,37 +353,43 @@ func PrintTree(tree Node, spacing string) float64 {
 
 	if tree.Left != nil {
 		fmt.Println(spacing + "---> True")
-		PrintTree(*tree.Left, spacing+"  ")
+		printTreeFromNode(*tree.Left, spacing+"  ")
 	}
 
 	if tree.Right != nil {
 		fmt.Println(spacing + "---> False")
-		PrintTree(*tree.Right, spacing+"  ")
+		printTreeFromNode(*tree.Right, spacing+"  ")
 	}
 
 	return 0.0
 }
 
-func Predict_single(tree Node, instance []float64) int64 {
+func predict_single(tree Node, instance []float64) int64 {
 	if instance[tree.Feature] < tree.Threshold {
 		if tree.Left == nil {
 			return tree.Left_Label
 		} else {
-			return Predict_single(*tree.Left, instance)
+			return predict_single(*tree.Left, instance)
 		}
 	} else {
 		if tree.Right == nil {
 			return tree.Right_Label
 		} else {
-			return Predict_single(*tree.Right, instance)
+			return predict_single(*tree.Right, instance)
 		}
 	}
 }
 
-func Predict(tree Node, test [][]float64) []int64 {
+func Predict(tree Tree, test [][]float64) []int64 {
+	root := *tree.RootNode
+
+	return predictFromNode(root, test)
+}
+
+func predictFromNode(tree Node, test [][]float64) []int64 {
 	var preds []int64
 	for i := range test {
-		i_pred := Predict_single(tree, test[i])
+		i_pred := predict_single(tree, test[i])
 		preds = append(preds, i_pred)
 	}
 	return preds
@@ -408,8 +445,13 @@ func Read_csv(train_size int) ([][]float64, [][]float64, []int64, []int64) {
 	return x_train, x_test, y_train, y_test
 }
 
-func Evaluate(tree Node, x_test [][]float64, y_test []int64) float64 {
-	preds := Predict(tree, x_test)
+func Evaluate(tree Tree, x_test [][]float64, y_test []int64) float64 {
+	rootNode := *tree.RootNode
+	return evaluateFromNode(rootNode, x_test, y_test)
+}
+
+func evaluateFromNode(tree Node, x_test [][]float64, y_test []int64) float64 {
+	preds := predictFromNode(tree, x_test)
 	accuracy := 0.0
 	for i := range preds {
 		if preds[i] == y_test[i] {

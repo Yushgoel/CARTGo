@@ -7,27 +7,17 @@ import (
 )
 
 func main() {
-	// For test cases
-
-	// var data [][]float64
-	// data = append(data, []float64{5, 20, 3})
-	// data = append(data, []float64{3, 20, 3})
-	// data = append(data, []float64{3, 20, 3})
-	// data = append(data, []float64{1, 20, 3})
-	// data = append(data, []float64{2, 20, 3})
-	// data = append(data, []float64{1, 2, 3})
-
-	// feature_0 := Classifier.Get_feature(data, 0)
-	// fmt.Println(Classifier.ReOrder_data(feature_0, data, []int64{0, 1, 1, 0, 1, 0}))
-	var tree Classifier.Node
-
-	// tree = Classifier.Best_split(data, []int64{0, 1, 0}, []int64{0, 1}, tree)
 
 	x_train, x_test, y_train, y_test := Classifier.Read_csv(713)
-	tree = Classifier.Best_split(x_train, y_train, []int64{0, 1}, tree, "entropy", 5, 0)
 
 	fmt.Println(" ")
+	fmt.Println("With sklearn Interface")
+
+	decTree := Classifier.DecisionTreeClassifier("entropy", -1, []int64{0, 1})
+	decTree = Classifier.Fit(decTree, x_train, y_train)
 	fmt.Println(" ")
-	Classifier.PrintTree(tree, "")
-	fmt.Println(Classifier.Evaluate(tree, x_test, y_test))
+	fmt.Println(" ")
+	Classifier.PrintTree(decTree)
+	fmt.Println(Classifier.Evaluate(decTree, x_test, y_test))
+	fmt.Println(Classifier.Predict(decTree, x_test))
 }
