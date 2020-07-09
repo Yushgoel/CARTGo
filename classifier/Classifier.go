@@ -320,11 +320,9 @@ func best_split(data [][]float64, y []int64, labels []int64, upperNode Node, cri
 			}
 
 		}
-		// print("Threshold " + upperNode.Threshold)
 
 	}
-	// fmt.Print("IGNORE THIS LINE")
-	// fmt.Println(best_left, best_right, best_lefty, best_righty)
+
 	return upperNode
 }
 

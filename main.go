@@ -19,5 +19,5 @@ func main() {
 	fmt.Println(" ")
 	Classifier.PrintTree(decTree)
 	fmt.Println(Classifier.Evaluate(decTree, x_test, y_test))
-	fmt.Println(Classifier.Predict(decTree, x_test))
+	//fmt.Println(Classifier.Predict(decTree, x_test))
 }
